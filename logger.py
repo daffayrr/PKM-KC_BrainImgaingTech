@@ -1,6 +1,7 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, send_file
 import logging
 import os
+import csv
 from datetime import datetime
 from functools import wraps
 
@@ -23,8 +24,8 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Sample username and password for authentication
-USERNAME = 'admin'
-PASSWORD = 'password123'
+USERNAME = 'administrator'
+PASSWORD = 'PasswordWebBIT2024*'
 
 # Authentication decorator
 def require_authentication(f):
@@ -49,10 +50,45 @@ def show_logs():
             logs.append({"timestamp": timestamp, "message": message})
     return render_template('logs.html', logs=logs)
 
+# Route to clear logs
+@app.route('/clear_logs', methods=['POST'])
+@require_authentication
+def clear_logs():
+    with open(log_file_path, 'w') as file:
+        file.write('')  # Clear the log file content
+    logger.info("Log telah dibersihkan.")
+    return redirect(url_for('show_logs'))
+
+# Route to download logs as CSV
+@app.route('/download_csv')
+@require_authentication
+def download_csv():
+    csv_file_path = os.path.join('logs', 'log.csv')
+    logs = []
+
+    with open(log_file_path, 'r') as file:
+        for line in file:
+            parts = line.strip().split(" : ", 1)
+            timestamp = parts[0]
+            message = parts[1]
+            logs.append({"timestamp": timestamp, "message": message})
+
+    # Write logs to CSV file
+    with open(csv_file_path, 'w', newline='') as csvfile:
+        fieldnames = ['timestamp', 'message']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for log in logs:
+            writer.writerow(log)
+
+    logger.info("Log telah disimpan ke CSV.")
+    return send_file(csv_file_path, as_attachment=True)
+
 # Add logging of IP address on request
 @app.before_request
 def log_request_info():
-    logger.info(f"Request from {request.remote_addr} to {request.path}")
+    logger.info(f"Request dari {request.remote_addr} ke {request.path}")
 
 # Start the Flask server
 if __name__ == '__main__':
